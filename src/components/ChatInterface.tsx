@@ -94,14 +94,7 @@ Beantworte die Fragen des Benutzers basierend auf dem Bild und dem extrahierten 
   };
 
   if (!apiKey) {
-    return (
-      <div className="glass rounded-xl p-6 text-center space-y-2">
-        <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto" />
-        <p className="text-muted-foreground">
-          Bitte gib deinen ChatGPT API Key ein, um den Chat zu nutzen.
-        </p>
-      </div>
-    );
+    return null;
   }
 
   return (

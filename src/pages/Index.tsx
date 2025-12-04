@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ScanText, Sparkles, RotateCcw } from "lucide-react";
+import { ScanText, RotateCcw } from "lucide-react";
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { ImagePreview } from "@/components/ImagePreview";
 import { ExtractedText } from "@/components/ExtractedText";
@@ -185,11 +185,6 @@ const Index = () => {
           ))}
         </div>
       </main>
-
-      {/* Floating Decoration */}
-      <div className="fixed bottom-4 right-4 p-3 glass rounded-full animate-pulse-glow">
-        <Sparkles className="w-5 h-5 text-primary" />
-      </div>
     </div>
   );
 };
