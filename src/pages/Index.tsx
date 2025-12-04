@@ -6,7 +6,7 @@ import { ExtractedText } from "@/components/ExtractedText";
 import { ApiKeyInput } from "@/components/ApiKeyInput";
 import { ChatInterface } from "@/components/ChatInterface";
 import { OCREngineSelector } from "@/components/OCREngineSelector";
-import { useOCR } from "@/hooks/useOCR";
+import { useOCR, OCR_ENGINES } from "@/hooks/useOCR";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
@@ -14,6 +14,7 @@ const Index = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("chatgpt-api-key") || "");
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem("gemini-api-key") || "");
 
   const { 
     isProcessing, 
@@ -31,23 +32,29 @@ const Index = () => {
     }
   }, [apiKey]);
 
+  useEffect(() => {
+    if (geminiApiKey) {
+      localStorage.setItem("gemini-api-key", geminiApiKey);
+    }
+  }, [geminiApiKey]);
+
   const handleImageSelect = (file: File) => {
     setImageFile(file);
     setImageUrl(URL.createObjectURL(file));
     
-    // Convert to base64 for GPT-4 Vision
+    // Convert to base64 for Vision APIs
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = reader.result as string;
       setImageBase64(base64);
-      processImage(file, selectedEngine, apiKey, base64);
+      processImage(file, selectedEngine, apiKey, base64, geminiApiKey);
     };
     reader.readAsDataURL(file);
   };
 
   const handleReprocess = () => {
     if (imageFile && imageBase64) {
-      processImage(imageFile, selectedEngine, apiKey, imageBase64);
+      processImage(imageFile, selectedEngine, apiKey, imageBase64, geminiApiKey);
     }
   };
 
@@ -63,10 +70,12 @@ const Index = () => {
     // Auto-reprocess if image exists
     if (imageFile && imageBase64) {
       setTimeout(() => {
-        processImage(imageFile, engine, apiKey, imageBase64);
+        processImage(imageFile, engine, apiKey, imageBase64, geminiApiKey);
       }, 100);
     }
   };
+
+  const currentEngine = OCR_ENGINES.find(e => e.id === selectedEngine);
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,7 +110,8 @@ const Index = () => {
                   <OCREngineSelector
                     value={selectedEngine}
                     onChange={handleEngineChange}
-                    hasApiKey={!!apiKey}
+                    hasOpenAiKey={!!apiKey}
+                    hasGeminiKey={!!geminiApiKey}
                     disabled={isProcessing}
                   />
                 </div>
@@ -135,9 +145,22 @@ const Index = () => {
             />
           </div>
 
-          {/* Right Column - API Key & Chat */}
+          {/* Right Column - API Keys & Chat */}
           <div className="space-y-6">
-            <ApiKeyInput apiKey={apiKey} onApiKeyChange={setApiKey} />
+            <ApiKeyInput 
+              apiKey={apiKey} 
+              onApiKeyChange={setApiKey}
+              label="OpenAI API Key"
+              placeholder="sk-..."
+              storageKey="openai"
+            />
+            <ApiKeyInput 
+              apiKey={geminiApiKey} 
+              onApiKeyChange={setGeminiApiKey}
+              label="Google Gemini API Key"
+              placeholder="AIza..."
+              storageKey="gemini"
+            />
             
             <ChatInterface 
               apiKey={apiKey} 
@@ -151,7 +174,7 @@ const Index = () => {
         <div className="mt-16 grid sm:grid-cols-3 gap-6">
           {[
             { icon: "📋", title: "STRG+V", desc: "Bilder direkt einfügen" },
-            { icon: "🔍", title: "Multi-OCR", desc: "Tesseract oder GPT-4 Vision" },
+            { icon: "🔍", title: "Multi-OCR", desc: "Tesseract, GPT-4 oder Gemini" },
             { icon: "💬", title: "AI Chat", desc: "Mit GPT-4 Vision über Bilder chatten" },
           ].map((feature) => (
             <div key={feature.title} className="glass rounded-xl p-5 text-center space-y-2 hover:border-primary/30 transition-colors">
