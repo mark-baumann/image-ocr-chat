@@ -1,6 +1,8 @@
 import { useCallback, useState, useEffect } from "react";
 import { Upload, Image as ImageIcon, Clipboard } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ImageDropzoneProps {
   onImageSelect: (file: File) => void;
@@ -43,6 +45,29 @@ export const ImageDropzone = ({ onImageSelect, isProcessing }: ImageDropzoneProp
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
+  };
+
+  const handleClipboardRead = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+
+      for (const item of clipboardItems) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const file = new File([blob], "clipboard-image.png", { type });
+            handleFile(file);
+            toast.success("Bild aus Zwischenablage eingefügt");
+            return;
+          }
+        }
+      }
+
+      toast.error("Kein Bild in der Zwischenablage gefunden");
+    } catch (error) {
+      console.error("Fehler beim Lesen der Zwischenablage:", error);
+      toast.error("Zugriff auf Zwischenablage fehlgeschlagen");
+    }
   };
 
   return (
@@ -90,6 +115,20 @@ export const ImageDropzone = ({ onImageSelect, isProcessing }: ImageDropzoneProp
           STRG + V
         </div>
       </div>
+
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleClipboardRead();
+        }}
+        variant="outline"
+        size="sm"
+        disabled={isProcessing}
+        className="relative z-10 gap-2"
+      >
+        <Clipboard className="w-4 h-4" />
+        Aus Zwischenablage einfügen
+      </Button>
     </div>
   );
 };
