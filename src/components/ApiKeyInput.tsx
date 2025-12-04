@@ -7,9 +7,18 @@ import { cn } from "@/lib/utils";
 interface ApiKeyInputProps {
   apiKey: string;
   onApiKeyChange: (key: string) => void;
+  label?: string;
+  placeholder?: string;
+  storageKey?: string;
 }
 
-export const ApiKeyInput = ({ apiKey, onApiKeyChange }: ApiKeyInputProps) => {
+export const ApiKeyInput = ({ 
+  apiKey, 
+  onApiKeyChange,
+  label = "ChatGPT API Key",
+  placeholder = "sk-...",
+  storageKey = "openai"
+}: ApiKeyInputProps) => {
   const [showKey, setShowKey] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
   const [saved, setSaved] = useState(false);
@@ -20,13 +29,15 @@ export const ApiKeyInput = ({ apiKey, onApiKeyChange }: ApiKeyInputProps) => {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const isValid = tempKey.startsWith("sk-") && tempKey.length > 20;
+  const isValid = storageKey === "gemini" 
+    ? tempKey.startsWith("AIza") && tempKey.length > 20
+    : tempKey.startsWith("sk-") && tempKey.length > 20;
 
   return (
     <div className="glass rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Key className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">ChatGPT API Key</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
       </div>
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -34,7 +45,7 @@ export const ApiKeyInput = ({ apiKey, onApiKeyChange }: ApiKeyInputProps) => {
             type={showKey ? "text" : "password"}
             value={tempKey}
             onChange={(e) => setTempKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder={placeholder}
             className={cn(
               "pr-10 font-mono text-sm",
               isValid && "border-primary/50"

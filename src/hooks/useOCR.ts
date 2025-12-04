@@ -1,13 +1,14 @@
 import { useState, useCallback } from "react";
 import { createWorker } from "tesseract.js";
 
-export type OCREngine = "tesseract" | "gpt4-vision";
+export type OCREngine = "tesseract" | "gpt4-vision" | "gemini-vision";
 
 export interface OCREngineInfo {
   id: OCREngine;
   name: string;
   description: string;
   requiresApiKey: boolean;
+  apiKeyType?: "openai" | "gemini";
 }
 
 export const OCR_ENGINES: OCREngineInfo[] = [
@@ -20,8 +21,16 @@ export const OCR_ENGINES: OCREngineInfo[] = [
   {
     id: "gpt4-vision",
     name: "GPT-4 Vision",
-    description: "Beste Qualität, nutzt API Key",
+    description: "Beste Qualität, nutzt OpenAI API Key",
     requiresApiKey: true,
+    apiKeyType: "openai",
+  },
+  {
+    id: "gemini-vision",
+    name: "Google Gemini",
+    description: "Sehr gute Qualität, kostenlose Nutzung möglich",
+    requiresApiKey: true,
+    apiKeyType: "gemini",
   },
 ];
 
@@ -62,7 +71,7 @@ export const useOCR = () => {
             content: [
               {
                 type: "text",
-                text: "Extrahiere den gesamten Text aus diesem Bild. Gib NUR den extrahierten Text zurück, ohne Erklärungen oder Kommentare. Behalte die Formatierung und Zeilenumbrüche bei.",
+                text: "Bitte lies und extrahiere ALLEN sichtbaren Text aus diesem Bild. Gib den kompletten Text zurück, den du sehen kannst - Überschriften, Absätze, Beschriftungen, alles. Formatiere den Text so, wie er im Bild erscheint. Antworte NUR mit dem extrahierten Text.",
               },
               {
                 type: "image_url",
@@ -86,11 +95,54 @@ export const useOCR = () => {
     return data.choices[0]?.message?.content?.trim() || "";
   };
 
+  const processWithGeminiVision = async (imageBase64: string, apiKey: string) => {
+    setProgress(30);
+    
+    // Extract base64 data without the prefix
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const mimeType = imageBase64.match(/^data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: "Bitte lies und extrahiere ALLEN sichtbaren Text aus diesem Bild. Gib den kompletten Text zurück, den du sehen kannst - Überschriften, Absätze, Beschriftungen, alles. Formatiere den Text so, wie er im Bild erscheint. Antworte NUR mit dem extrahierten Text.",
+              },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Data,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    setProgress(80);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "Gemini Vision API Fehler");
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+  };
+
   const processImage = useCallback(async (
     imageFile: File, 
     engine: OCREngine,
     apiKey?: string,
-    imageBase64?: string
+    imageBase64?: string,
+    geminiApiKey?: string
   ) => {
     setIsProcessing(true);
     setProgress(0);
@@ -103,9 +155,14 @@ export const useOCR = () => {
         text = await processWithTesseract(imageFile);
       } else if (engine === "gpt4-vision") {
         if (!apiKey || !imageBase64) {
-          throw new Error("API Key erforderlich für GPT-4 Vision");
+          throw new Error("OpenAI API Key erforderlich für GPT-4 Vision");
         }
         text = await processWithGPT4Vision(imageBase64, apiKey);
+      } else if (engine === "gemini-vision") {
+        if (!geminiApiKey || !imageBase64) {
+          throw new Error("Gemini API Key erforderlich für Google Gemini");
+        }
+        text = await processWithGeminiVision(imageBase64, geminiApiKey);
       }
 
       setExtractedText(text || "Kein Text erkannt");
